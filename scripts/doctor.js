@@ -15,6 +15,10 @@ function parseEnv(content) {
     if (idx < 0) continue;
     const key = line.slice(0, idx).trim();
     let value = line.slice(idx + 1).trim();
+    // Support inline comments for unquoted env values, e.g. PORT=3000 # comment
+    if (!(value.startsWith('"') || value.startsWith("'"))) {
+      value = value.split(/\s+#/)[0].trim();
+    }
     value = value.replace(/^"(.*)"$/, '$1');
     out[key] = value;
   }
@@ -23,6 +27,11 @@ function parseEnv(content) {
 
 function checkPort(host, port, timeoutMs = 1200) {
   return new Promise((resolve) => {
+    const numericPort = Number(port);
+    if (!Number.isInteger(numericPort) || numericPort < 0 || numericPort > 65535) {
+      resolve(false);
+      return;
+    }
     const socket = new net.Socket();
     let settled = false;
     socket.setTimeout(timeoutMs);
@@ -45,7 +54,7 @@ function checkPort(host, port, timeoutMs = 1200) {
         resolve(false);
       }
     });
-    socket.connect(Number(port), host);
+    socket.connect(numericPort, host);
   });
 }
 
@@ -79,6 +88,15 @@ async function main() {
   const redisPort = env.REDIS_PORT || '6379';
   const dbHost = env.DB_HOST || '127.0.0.1';
   const dbPort = env.DB_PORT || '5432';
+  const redisPortNum = Number(redisPort);
+  const dbPortNum = Number(dbPort);
+
+  if (!Number.isInteger(redisPortNum) || redisPortNum < 0 || redisPortNum > 65535) {
+    issues.push(`REDIS_PORT tidak valid: "${redisPort}" (harus angka 0-65535).`);
+  }
+  if (!Number.isInteger(dbPortNum) || dbPortNum < 0 || dbPortNum > 65535) {
+    issues.push(`DB_PORT tidak valid: "${dbPort}" (harus angka 0-65535).`);
+  }
 
   const [redisOk, dbOk] = await Promise.all([
     checkPort(redisHost, redisPort),
