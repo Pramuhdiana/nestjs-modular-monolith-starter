@@ -1,0 +1,167 @@
+// =============================================================================
+// Prisma — satu database PostgreSQL, banyak SCHEMA per modul domain.
+// KENAPA satu file: satu migration history, satu Prisma Client, deploy deterministik.
+// KENAPA multi-schema: batas kepemilikan data jelas; nanti split DB lebih mudah.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["auth", "users", "catalog", "sales", "ops"]
+}
+
+// -----------------------------------------------------------------------------
+// Schema `auth` — identitas kredensial & JWT subject (sub = user id).
+// Dipisah agar concern login tidak bercampur profil/detail HR di schema users.
+// -----------------------------------------------------------------------------
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         String   @default("user")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  profile Profile?
+  orders  Order[]
+  tokens  AuthToken[]
+
+  @@map("users")
+  @@schema("auth")
+}
+
+model AuthToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  jti       String    @unique
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+  @@map("auth_tokens")
+  @@schema("auth")
+}
+
+// -----------------------------------------------------------------------------
+// Schema `users` — data profil yang bukan secret; bisa berkembang tanpa sentuh auth.
+// -----------------------------------------------------------------------------
+
+model Profile {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique @map("user_id")
+  fullName  String   @map("full_name")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+  @@schema("users")
+}
+
+// -----------------------------------------------------------------------------
+// Schema `catalog` — produk; terpisah dari sales agar harga & SKU tidak coupling order.
+// -----------------------------------------------------------------------------
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  sku         String   @unique
+  name        String
+  description String?
+  priceCents  Int      @map("price_cents")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  orderItems OrderItem[]
+
+  @@map("products")
+  @@schema("catalog")
+}
+
+// -----------------------------------------------------------------------------
+// Schema `sales` — pembelian; menyimpan userId (siapa pesan) tanpa join wajib ke profil.
+// -----------------------------------------------------------------------------
+
+model Order {
+  id        Int         @id @default(autoincrement())
+  userId    Int         @map("user_id")
+  status    OrderStatus @default(PENDING)
+  totalCents Int        @map("total_cents")
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+  deletedAt DateTime?   @map("deleted_at")
+
+  user  User        @relation(fields: [userId], references: [id])
+  items OrderItem[]
+
+  @@index([userId])
+  @@map("orders")
+  @@schema("sales")
+}
+
+model OrderItem {
+  id         Int @id @default(autoincrement())
+  orderId    Int @map("order_id")
+  productId  Int @map("product_id")
+  quantity   Int
+  unitPriceCents Int @map("unit_price_cents")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+  @@schema("sales")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+
+  @@schema("sales")
+}
+
+// -----------------------------------------------------------------------------
+// Schema `ops` — operasional aplikasi (error logs, audit teknis, dsb).
+// -----------------------------------------------------------------------------
+model ErrorLog {
+  id         Int      @id @default(autoincrement())
+  source     String   @default("api")
+  requestId  String?  @map("request_id")
+  method     String?
+  path       String?
+  statusCode Int      @map("status_code")
+  errorCode  String?  @map("error_code")
+  message    String
+  details    Json?
+  stack      String?
+  payload    Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  @@index([createdAt])
+  @@index([statusCode])
+  @@index([requestId])
+  @@map("error_logs")
+  @@schema("ops")
+}
