@@ -29,6 +29,9 @@ export class AuthService {
           email: dto.email,
           passwordHash,
           fullName: dto.fullName,
+          // Forward field baru ke repository supaya saat register tidak perlu patch profile ulang.
+          jenisKelamin: dto.jenisKelamin,
+          isHead: dto.isHead,
         });
 
         return this.buildTokenResponse(user.id, user.email, user.role);
@@ -106,7 +109,14 @@ export class AuthService {
           id: user.id,
           email: user.email,
           role: user.role,
-          profile: profile ? { fullName: profile.fullName } : null,
+          // Ditambahkan agar endpoint /auth/me merefleksikan shape profile terbaru.
+          profile: profile
+            ? {
+                fullName: profile.fullName,
+                jenisKelamin: profile.jenisKelamin,
+                isHead: profile.isHead,
+              }
+            : null,
         };
       },
       {

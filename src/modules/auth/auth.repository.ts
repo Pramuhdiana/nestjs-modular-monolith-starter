@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { JenisKelamin } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { activeWhere } from '../../shared/database/soft-delete.helper';
 import { safeExecute } from '../../shared/utils/safe-execute';
@@ -49,15 +50,27 @@ export class AuthRepository {
     );
   }
 
-  async createUserWithProfile(data: { email: string; passwordHash: string; fullName: string }) {
+  async createUserWithProfile(data: {
+    email: string;
+    passwordHash: string;
+    fullName: string;
+    jenisKelamin?: JenisKelamin;
+    isHead?: boolean;
+  }) {
     return safeExecute(
       () =>
         this.prisma.$transaction(async (tx) => {
           const user = await tx.user.create({
             data: { email: data.email, passwordHash: data.passwordHash, role: 'user' },
           });
+          // Kolom profile baru diisi di sini agar user+profile tetap atomik dalam 1 transaksi.
           await tx.profile.create({
-            data: { userId: user.id, fullName: data.fullName },
+            data: {
+              userId: user.id,
+              fullName: data.fullName,
+              jenisKelamin: data.jenisKelamin,
+              isHead: data.isHead ?? false,
+            },
           });
           return { id: user.id, email: user.email, role: user.role };
         }),

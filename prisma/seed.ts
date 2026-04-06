@@ -58,14 +58,20 @@ async function seedUsers() {
 
   await prisma.profile.upsert({
     where: { userId: admin.id },
-    update: { fullName: 'Demo Admin' },
-    create: { userId: admin.id, fullName: 'Demo Admin' },
+    // Isi kolom baru di seed demo agar env local langsung punya contoh data valid enum/boolean.
+    update: { fullName: 'Demo Admin', jenisKelamin: 'LAKI_LAKI', isHead: true },
+    create: { userId: admin.id, fullName: 'Demo Admin', jenisKelamin: 'LAKI_LAKI', isHead: true },
   });
 
   await prisma.profile.upsert({
     where: { userId: buyer.id },
-    update: { fullName: 'Demo Buyer' },
-    create: { userId: buyer.id, fullName: 'Demo Buyer' },
+    update: { fullName: 'Demo Buyer', jenisKelamin: 'PEREMPUAN', isHead: false },
+    create: {
+      userId: buyer.id,
+      fullName: 'Demo Buyer',
+      jenisKelamin: 'PEREMPUAN',
+      isHead: false,
+    },
   });
 
   return { admin, buyer };

@@ -63,6 +63,11 @@ model Profile {
   id        Int      @id @default(autoincrement())
   userId    Int      @unique @map("user_id")
   fullName  String   @map("full_name")
+  // Ditambahkan untuk membatasi input ke daftar nilai resmi (hindari typo/inkonsistensi data).
+  // Jika butuh opsi baru, update enum `JenisKelamin` lalu buat migration.
+  jenisKelamin JenisKelamin? @map("jenis_kelamin")
+  // Ditambahkan untuk kebutuhan struktur organisasi tanpa perlu tabel tambahan.
+  isHead    Boolean  @default(false) @map("is_head")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
@@ -70,6 +75,18 @@ model Profile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("profiles")
+  @@schema("users")
+}
+
+// Template enum:
+// - Nama enum: PascalCase
+// - Nilai enum: UPPER_SNAKE_CASE
+// - Wajib set @@schema(...) sesuai domain PostgreSQL
+// - Setelah ubah enum: `npx prisma migrate dev --name <deskripsi>`
+enum JenisKelamin {
+  LAKI_LAKI
+  PEREMPUAN
+
   @@schema("users")
 }
 

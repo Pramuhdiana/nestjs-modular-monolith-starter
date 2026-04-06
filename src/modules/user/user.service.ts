@@ -44,7 +44,12 @@ export class UserService {
     return safeExecute(
       async () => {
         await this.getProfile(userId);
-        return this.users.updateProfile(userId, dto.fullName);
+        // Map DTO -> repository payload agar kontrak update profile tetap satu pintu.
+        return this.users.updateProfile(userId, {
+          fullName: dto.fullName,
+          jenisKelamin: dto.jenisKelamin,
+          isHead: dto.isHead,
+        });
       },
       {
         context: 'UserService.updateProfile',

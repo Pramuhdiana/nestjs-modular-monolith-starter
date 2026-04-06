@@ -71,6 +71,8 @@ Jika menambah model baru (contoh `ops.error_logs`), jalankan migrasi baru:
 npm run prisma:migrate -- --name add_ops_error_logs
 ```
 
+Jika menambah kolom baru (termasuk enum + comment database), ikuti panduan langkah-demi-langkah di `DEVELOPER_MANUAL.md` bagian **"Cara Menambah Kolom Baru (Wajib Ikuti)"**.
+
 Untuk perubahan auth token session (login/logout revoke), jalankan migrasi:
 
 ```bash
@@ -146,7 +148,7 @@ Konten mode `minimal`:
 
 ## Endpoint contoh
 
-- `POST /api/auth/register` — `{ "email", "password", "fullName" }`
+- `POST /api/auth/register` — `{ "email", "password", "fullName", "jenisKelamin?", "isHead?" }`
 - `POST /api/auth/login`
 - `POST /api/auth/logout` — Bearer JWT, revoke token session saat ini
 - `GET /api/auth/me` — Bearer JWT
@@ -216,6 +218,7 @@ Helper untuk konsistensi dan refactor:
 - `src/shared/database/soft-delete-repository.helper.ts` — helper reusable `softDeleteByWhere` / `restoreByWhere`.
 
 Panduan lengkap membuat API baru ada di **`DEVELOPER_MANUAL.md`**.
+Untuk perubahan schema existing (add column / enum / DB comment), baca bagian **"Cara Menambah Kolom Baru (Wajib Ikuti)"** di manual tersebut.
 
 ## Catatan production
 

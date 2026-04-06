@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { JenisKelamin, Prisma } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import {
@@ -64,6 +64,9 @@ export class UserRepository {
                 profile: {
                   select: {
                     fullName: true,
+                    // Kolom baru ikut di-select agar response list users konsisten dengan schema terbaru.
+                    jenisKelamin: true,
+                    isHead: true,
                     deletedAt: true,
                   },
                 },
@@ -74,7 +77,13 @@ export class UserRepository {
               email: row.email,
               role: row.role,
               createdAt: row.createdAt,
-              profile: row.profile?.deletedAt ? null : { fullName: row.profile?.fullName ?? null },
+              profile: row.profile?.deletedAt
+                ? null
+                : {
+                    fullName: row.profile?.fullName ?? null,
+                    jenisKelamin: row.profile?.jenisKelamin ?? null,
+                    isHead: row.profile?.isHead ?? false,
+                  },
             }));
           },
           countItems: () => this.prisma.user.count({ where }),
@@ -96,6 +105,9 @@ export class UserRepository {
             id: true,
             userId: true,
             fullName: true,
+            // Ditambahkan agar endpoint profile mengembalikan data baru tanpa query tambahan.
+            jenisKelamin: true,
+            isHead: true,
             createdAt: true,
             updatedAt: true,
           },
@@ -107,12 +119,20 @@ export class UserRepository {
     );
   }
 
-  async updateProfile(userId: number, fullName: string) {
+  async updateProfile(
+    userId: number,
+    data: { fullName: string; jenisKelamin?: JenisKelamin | null; isHead?: boolean },
+  ) {
     return safeExecute(
       async () => {
         await this.prisma.profile.updateMany({
           where: activeWhere({ userId }),
-          data: { fullName },
+          data: {
+            fullName: data.fullName,
+            // Optional update: hanya overwrite jika field benar-benar dikirim client.
+            ...(data.jenisKelamin !== undefined ? { jenisKelamin: data.jenisKelamin } : {}),
+            ...(data.isHead !== undefined ? { isHead: data.isHead } : {}),
+          },
         });
         return this.prisma.profile.findFirst({
           where: activeWhere({ userId }),
@@ -120,6 +140,8 @@ export class UserRepository {
             id: true,
             userId: true,
             fullName: true,
+            jenisKelamin: true,
+            isHead: true,
             createdAt: true,
             updatedAt: true,
           },

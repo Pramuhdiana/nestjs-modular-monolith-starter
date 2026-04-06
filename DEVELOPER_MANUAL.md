@@ -43,6 +43,85 @@ src/modules/inventory/
    - `npm run prisma:generate`
    - `npm run prisma:migrate -- --name your_migration_name`
 
+### 3.1) Cara Menambah Kolom Baru (Wajib Ikuti)
+
+Contoh kasus: menambah `jenis_kelamin` (enum) dan `is_head` (boolean) pada `users.profiles`.
+
+1. **Update schema Prisma**
+
+```prisma
+model Profile {
+  id           Int           @id @default(autoincrement())
+  userId       Int           @unique @map("user_id")
+  fullName     String        @map("full_name")
+  jenisKelamin JenisKelamin? @map("jenis_kelamin")
+  isHead       Boolean       @default(false) @map("is_head")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  deletedAt    DateTime?     @map("deleted_at")
+
+  @@map("profiles")
+  @@schema("users")
+}
+
+enum JenisKelamin {
+  LAKI_LAKI
+  PEREMPUAN
+
+  @@schema("users")
+}
+```
+
+2. **Buat migration (jangan edit DB manual)**
+
+```bash
+npm run prisma:generate
+npx prisma migrate dev --name add_profile_gender_is_head
+```
+
+3. **Jika perlu metadata DB, tambah komentar di migration SQL**
+
+```sql
+COMMENT ON TYPE "users"."JenisKelamin" IS 'Enum jenis kelamin yang diizinkan: LAKI_LAKI, PEREMPUAN.';
+COMMENT ON COLUMN "users"."profiles"."jenis_kelamin" IS 'Jenis kelamin profile.';
+COMMENT ON COLUMN "users"."profiles"."is_head" IS 'Penanda kepala unit / PIC.';
+```
+
+4. **Update DTO (request contract)**
+
+```ts
+@IsOptional()
+@IsEnum(JenisKelamin)
+jenisKelamin?: JenisKelamin;
+
+@IsOptional()
+@IsBoolean()
+isHead?: boolean;
+```
+
+5. **Update repository/service (persist + response)**
+   - Tambah field baru di `create/update`.
+   - Tambah field baru di `select` agar response sinkron.
+   - Untuk partial update, hanya update field yang dikirim request.
+
+6. **Update seed**
+   - Isi contoh data valid enum/boolean agar developer baru langsung paham format data.
+
+7. **Verifikasi**
+
+```bash
+npm run build
+npm run prisma:seed
+```
+
+Checklist cepat sebelum PR:
+- [ ] Schema berubah
+- [ ] Migration ada
+- [ ] DTO validasi berubah
+- [ ] Repository/service berubah
+- [ ] Seed berubah
+- [ ] Dokumen berubah (README/manual bila perlu)
+
 3. **Repository**
    - Buat fungsi query/transaction.
    - Bungkus dengan `safeExecute`.
